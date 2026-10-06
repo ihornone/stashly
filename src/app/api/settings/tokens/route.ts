@@ -18,8 +18,8 @@ const createSchema = z.object({
     .default(['items:read', 'tags:read']),
 });
 
-export async function GET() {
-  return withAuthRoute(null, null, async ({ userId }) => {
+export async function GET(req: NextRequest) {
+  return withAuthRoute(req, null, async ({ userId }) => {
     const tokens = await ApiTokenRepository.listByUser(userId, true);
     return successResponse('Tokens retrieved', {
       tokens: tokens.map((t) => ({

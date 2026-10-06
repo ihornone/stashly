@@ -5,8 +5,8 @@ import { withAuthRoute, intParam } from '@/server/api';
 import { jsonResponse, successResponse, errorResponse } from '@/server/auth';
 import { parseTagSegments, createTagsFromSegments } from '@/server/tagUtils';
 
-export async function GET() {
-  return withAuthRoute(null, null, async ({ userId }) => {
+export async function GET(req: NextRequest) {
+  return withAuthRoute(req, null, async ({ userId }) => {
     const tags = await TagRepository.getTags(userId);
     return jsonResponse(tags);
   });

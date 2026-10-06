@@ -30,8 +30,8 @@ const itemBodySchema = z.object({
   tags: z.array(z.union([z.number(), z.string()])).optional().default([]),
 });
 
-export async function GET() {
-  return withAuthRoute(null, null, async ({ userId }) => {
+export async function GET(req: NextRequest) {
+  return withAuthRoute(req, null, async ({ userId }) => {
     const items = await ItemRepository.getItems(userId);
     return jsonResponse(items);
   });

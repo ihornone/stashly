@@ -20,14 +20,12 @@ function parsePrefs(raw: string | null | undefined): Record<string, unknown> {
   }
 }
 
-export async function GET() {
-  const user = await getAuthenticatedUser();
-  if (!user) {
-    return errorResponse('Потрібна авторизація', 401);
-  }
-
-  return successResponse('Preferences retrieved successfully.', {
-    preferences: parsePrefs(user.preferences),
+export async function GET(req: NextRequest) {
+  return withAuthRoute(req, null, async ({ userId }) => {
+    const user = await getAuthenticatedUser();
+    return successResponse('Preferences retrieved successfully.', {
+      preferences: parsePrefs(user?.preferences),
+    });
   });
 }
 
