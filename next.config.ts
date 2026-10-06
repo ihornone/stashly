@@ -13,10 +13,11 @@ const securityHeaders = [
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' https://*.clerk.accounts.dev",
+      "script-src 'self' 'unsafe-inline' https://*.clerk.accounts.dev https://static.cloudflareinsights.com",
+      "worker-src 'self' blob:",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https: http:",
-      "connect-src 'self' https://*.clerk.accounts.dev wss://*.clerk.accounts.dev",
+      "connect-src 'self' https://*.clerk.accounts.dev wss://*.clerk.accounts.dev https://clerk-telemetry.com https://cloudflareinsights.com https://*.cloudflareinsights.com",
       "font-src 'self' data:",
       "frame-ancestors 'none'",
       "object-src 'none'",
