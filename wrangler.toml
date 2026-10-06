@@ -11,7 +11,7 @@ binding = "ASSETS"
 [[d1_databases]]
 binding = "DB"
 database_name = "stashly_db"
-database_id = "stashly-d1-db"
+database_id = "0ca2ffcd-2c31-45b3-ab84-422284173b1d"
 
 # KV Namespace for Next.js Cache & ISR
 [[kv_namespaces]]
