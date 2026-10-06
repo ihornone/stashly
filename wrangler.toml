@@ -20,3 +20,6 @@ id = "b5c403e3805143498c436a2e5840e68b"
 
 [vars]
 ENVIRONMENT = "production"
+NEXT_PUBLIC_APP_URL = "https://stashly.pelykhihor3456.workers.dev"
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = "pk_test_bGlrZWQtbW9ua2V5LTM2LmNsZXJrLmFjY291bnRzLmRldiQ"
+TELEGRAM_BOT_USERNAME = "StashlyAppBot"
