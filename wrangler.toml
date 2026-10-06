@@ -1,7 +1,7 @@
 name = "stashly"
 main = ".open-next/worker.js"
 compatibility_date = "2025-02-14"
-compatibility_flags = ["nodejs_compat", "nodejs_compat_v2"]
+compatibility_flags = ["nodejs_compat"]
 
 [assets]
 directory = ".open-next/assets"
