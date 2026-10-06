@@ -16,7 +16,7 @@ database_id = "stashly-d1-db"
 # KV Namespace for Next.js Cache & ISR
 [[kv_namespaces]]
 binding = "NEXT_CACHE_WORKERS_KV"
-id = "stashly-kv-cache"
+id = "b5c403e3805143498c436a2e5840e68b"
 
 [vars]
 ENVIRONMENT = "production"
