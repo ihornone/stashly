@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { ItemRepository } from '@/server/repositories/items';
 import { TagRepository } from '@/server/repositories/tags';
 import { errorResponse, getAuthenticatedUserId, successResponse } from '@/server/auth';
-import { JSDOM } from 'jsdom';
+import * as cheerio from 'cheerio';
 import { parse } from 'csv-parse/sync';
 import { scrapeUrlMetadata } from '@/server/scraper';
 import { logger } from '@/lib/logger';
@@ -250,16 +250,16 @@ export async function POST(req: NextRequest) {
       }
 
       if (extractedBookmarks.length === 0) {
-        const dom = new JSDOM(content);
-        const doc = dom.window.document;
-        const links = Array.from(doc.querySelectorAll('a'));
+        const $ = cheerio.load(content);
+        const links = $('a').toArray();
 
         for (const link of links) {
-          const url = link.getAttribute('href');
+          const $el = $(link);
+          const url = $el.attr('href');
           if (!url || !url.startsWith('http')) continue;
 
-          const title = (link.textContent || url).trim();
-          const tagsAttr = link.getAttribute('tags') || link.getAttribute('TAGS') || '';
+          const title = ($el.text() || url).trim();
+          const tagsAttr = $el.attr('tags') || $el.attr('TAGS') || '';
           const tags = tagsAttr ? tagsAttr.split(',').map((t) => t.trim()).filter(Boolean) : [];
 
           extractedBookmarks.push({

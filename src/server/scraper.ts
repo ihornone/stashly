@@ -1,4 +1,4 @@
-import { JSDOM } from 'jsdom';
+import * as cheerio from 'cheerio';
 
 const MAX_HTML_BYTES = 3 * 1024 * 1024; // 3 MB cap on scraped page bodies
 const MAX_REDIRECTS = 5;
@@ -218,12 +218,11 @@ async function scrapeTelegramMetadata(parsedUrl: URL, targetUrl: string) {
 
     if (res.ok) {
       const html = await readBodyWithCap(res);
-      const dom = new JSDOM(html);
-      const doc = dom.window.document;
+      const $ = cheerio.load(html);
 
-      const ogTitle = doc.querySelector('meta[property="og:title"]')?.getAttribute('content');
-      const ogDesc = doc.querySelector('meta[property="og:description"]')?.getAttribute('content');
-      const ogImage = doc.querySelector('meta[property="og:image"]')?.getAttribute('content');
+      const ogTitle = $('meta[property="og:title"]').attr('content');
+      const ogDesc = $('meta[property="og:description"]').attr('content');
+      const ogImage = $('meta[property="og:image"]').attr('content');
 
       return {
         title: ogTitle || `Telegram: @${path}`,
@@ -239,25 +238,25 @@ async function scrapeTelegramMetadata(parsedUrl: URL, targetUrl: string) {
 }
 
 // Fallback high quality favicon fetcher
-export function getHighResFavicon(doc: Document, baseUrl: string): string {
-  const appleTouchIcons = doc.querySelectorAll('link[rel="apple-touch-icon"], link[rel="apple-touch-icon-precomposed"]');
-  for (const icon of Array.from(appleTouchIcons)) {
-    const href = icon.getAttribute('href');
+export function getHighResFavicon($: cheerio.CheerioAPI, baseUrl: string): string {
+  const appleTouchIcons = $('link[rel="apple-touch-icon"], link[rel="apple-touch-icon-precomposed"]').toArray();
+  for (const icon of appleTouchIcons) {
+    const href = $(icon).attr('href');
     if (href) return resolveUrl(href, baseUrl);
   }
 
-  const iconsWithSizes = Array.from(doc.querySelectorAll('link[rel="icon"][sizes], link[rel="shortcut icon"][sizes]'));
+  const iconsWithSizes = $('link[rel="icon"][sizes], link[rel="shortcut icon"][sizes]').toArray();
   if (iconsWithSizes.length > 0) {
     iconsWithSizes.sort((a, b) => {
-      const sizeA = parseInt(a.getAttribute('sizes') || '0', 10);
-      const sizeB = parseInt(b.getAttribute('sizes') || '0', 10);
+      const sizeA = parseInt($(a).attr('sizes') || '0', 10);
+      const sizeB = parseInt($(b).attr('sizes') || '0', 10);
       return sizeB - sizeA;
     });
-    const bestIconHref = iconsWithSizes[0].getAttribute('href');
+    const bestIconHref = $(iconsWithSizes[0]).attr('href');
     if (bestIconHref) return resolveUrl(bestIconHref, baseUrl);
   }
 
-  const standardIcon = doc.querySelector('link[rel="icon"], link[rel="shortcut icon"]')?.getAttribute('href');
+  const standardIcon = $('link[rel="icon"], link[rel="shortcut icon"]').attr('href');
   if (standardIcon) {
     return resolveUrl(standardIcon, baseUrl);
   }
@@ -296,25 +295,24 @@ export async function scrapeUrlMetadata(targetUrl: string) {
   }
 
   const html = await readBodyWithCap(response);
-  const dom = new JSDOM(html);
-  const doc = dom.window.document;
+  const $ = cheerio.load(html);
 
-  const ogTitle = doc.querySelector('meta[property="og:title"]')?.getAttribute('content');
-  const twitterTitle = doc.querySelector('meta[name="twitter:title"]')?.getAttribute('content');
-  const schemaTitle = doc.querySelector('meta[itemprop="name"]')?.getAttribute('content');
-  const docTitle = doc.querySelector('title')?.textContent;
-  const h1Title = doc.querySelector('h1')?.textContent;
+  const ogTitle = $('meta[property="og:title"]').attr('content');
+  const twitterTitle = $('meta[name="twitter:title"]').attr('content');
+  const schemaTitle = $('meta[itemprop="name"]').attr('content');
+  const docTitle = $('title').first().text();
+  const h1Title = $('h1').first().text();
   const title = (ogTitle || twitterTitle || schemaTitle || docTitle || h1Title || parsed.hostname).trim();
 
-  const ogDesc = doc.querySelector('meta[property="og:description"]')?.getAttribute('content');
-  const metaDesc = doc.querySelector('meta[name="description"]')?.getAttribute('content');
-  const twitterDesc = doc.querySelector('meta[name="twitter:description"]')?.getAttribute('content');
-  const schemaDesc = doc.querySelector('meta[itemprop="description"]')?.getAttribute('content');
+  const ogDesc = $('meta[property="og:description"]').attr('content');
+  const metaDesc = $('meta[name="description"]').attr('content');
+  const twitterDesc = $('meta[name="twitter:description"]').attr('content');
+  const schemaDesc = $('meta[itemprop="description"]').attr('content');
   const description = (ogDesc || metaDesc || twitterDesc || schemaDesc || '').trim();
 
-  const ogImage = doc.querySelector('meta[property="og:image"]')?.getAttribute('content');
-  const twitterImage = doc.querySelector('meta[name="twitter:image"]')?.getAttribute('content');
-  const schemaImage = doc.querySelector('meta[itemprop="image"]')?.getAttribute('content');
+  const ogImage = $('meta[property="og:image"]').attr('content');
+  const twitterImage = $('meta[name="twitter:image"]').attr('content');
+  const schemaImage = $('meta[itemprop="image"]').attr('content');
   let image = ogImage || twitterImage || schemaImage || '';
 
   if (!image) {
@@ -325,7 +323,7 @@ export async function scrapeUrlMetadata(targetUrl: string) {
   }
 
   if (!image) {
-    const firstImg = doc.querySelector('article img[src], main img[src], img[src]')?.getAttribute('src');
+    const firstImg = $('article img[src], main img[src], img[src]').first().attr('src');
     if (firstImg && !firstImg.startsWith('data:') && !firstImg.includes('spacer') && !firstImg.includes('pixel')) {
       image = firstImg;
     }
@@ -334,7 +332,7 @@ export async function scrapeUrlMetadata(targetUrl: string) {
   if (image) {
     image = resolveUrl(image, targetUrl);
   } else {
-    image = getHighResFavicon(doc, targetUrl);
+    image = getHighResFavicon($, targetUrl);
   }
 
   return {
