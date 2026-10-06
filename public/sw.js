@@ -38,9 +38,10 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Skip non-GET requests, Chrome extensions, and authentication/API calls from caching
+  // Skip non-GET requests, non-http, external origins, and authentication/API calls
   if (event.request.method !== 'GET') return;
   if (!url.protocol.startsWith('http')) return;
+  if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith('/api/') || url.hostname.includes('clerk')) {
     return;
   }
@@ -85,7 +86,7 @@ self.addEventListener('fetch', (event) => {
           const cached = await caches.match(event.request);
           if (cached) return cached;
           const fallback = await caches.match('/app');
-          return fallback || caches.match('/');
+          return fallback || (await caches.match('/')) || new Response('Offline', { status: 503 });
         })
     );
     return;
@@ -94,7 +95,8 @@ self.addEventListener('fetch', (event) => {
   // Default: Network with Cache fallback
   event.respondWith(
     fetch(event.request).catch(async () => {
-      return caches.match(event.request);
+      const cached = await caches.match(event.request);
+      return cached || new Response('Not Found', { status: 404 });
     })
   );
 });

@@ -14,9 +14,9 @@ export class UserRepository {
     const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
     const res = await db
       .prepare(
-        'INSERT INTO users (clerk_id, email, username, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
+        'INSERT INTO users (clerk_id, email, username, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
       )
-      .bind(clerkId, email || '', username, '', now, now)
+      .bind(clerkId, email || '', username, now, now)
       .run();
     const newUserId = res.meta.last_row_id;
     await seedInitialDataForUser(db, newUserId);
