@@ -293,14 +293,18 @@ export function getImageStorageDir(): string {
 
 function getWorkerD1(): D1Database | null {
   try {
+    const cfGlobal = (globalThis as any)[Symbol.for('__cloudflare-context__')];
+    if (cfGlobal?.env?.DB) {
+      return cfGlobal.env.DB as D1Database;
+    }
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { getCloudflareContext } = require('@opennextjs/cloudflare');
-    const env = (getCloudflareContext() as { env?: Record<string, unknown> }).env;
-    if (env && env.DB) {
-      return env.DB as D1Database;
+    const ctx = getCloudflareContext();
+    if (ctx?.env?.DB) {
+      return ctx.env.DB as D1Database;
     }
-  } catch {
-    // Not running inside a Cloudflare Worker (local Node dev/self-hosted)
+  } catch (err: any) {
+    logger.warn({ event: 'get_worker_d1_not_in_context', error: err?.message });
   }
   return null;
 }

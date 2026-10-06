@@ -49,12 +49,19 @@ export async function withAuthRoute<T = undefined>(
     if (err instanceof ZodError) {
       return errorResponse('Невірні дані запиту', 422, err.flatten().fieldErrors);
     }
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    const errorStack = err instanceof Error ? err.stack : undefined;
     logger.error({
       event: 'api_unhandled_route_error',
-      error: err instanceof Error ? err.message : String(err),
+      error: errorMsg,
+      stack: errorStack,
       path: req?.url,
     });
-    return errorResponse('Внутрішня помилка сервера', 500);
+    return errorResponse(
+      'Внутрішня помилка сервера',
+      500,
+      process.env.LOG_LEVEL === 'debug' ? { error: errorMsg, stack: errorStack } : undefined
+    );
   }
 }
 
