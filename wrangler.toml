@@ -1,0 +1,22 @@
+name = "stashly"
+main = ".open-next/worker.js"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
+
+# D1 Database binding for Cloudflare
+[[d1_databases]]
+binding = "DB"
+database_name = "stashly_db"
+database_id = "stashly-d1-db"
+
+# KV Namespace for Next.js Cache & ISR
+[[kv_namespaces]]
+binding = "NEXT_CACHE_WORKERS_KV"
+id = "stashly-kv-cache"
+
+[vars]
+ENVIRONMENT = "production"

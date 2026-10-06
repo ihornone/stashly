@@ -1,0 +1,36 @@
+# Code Structure Contract according to rules/code-structure-verification
+project_type: web
+version: "3.0"
+structure:
+  root_dirs:
+    - src
+    - rules
+    - storage
+    - public
+  required_dirs:
+    - src/app
+    - src/features
+    - src/components
+    - src/lib
+    - src/server
+    - src/store
+  entry_points:
+    - src/app/layout.tsx
+    - src/app/page.tsx
+    - src/app/app/page.tsx
+  exclude:
+    - node_modules
+    - .git
+    - .next
+    - dist
+    - build
+thresholds:
+  max_depth: 5
+  max_files_per_dir: 25
+  max_file_lines: 600
+rules:
+  dependency_direction: "app -> features -> shared/lib -> external"
+  feature_isolation: true
+  typed_errors: true
+  structured_logging: true
+  ssrf_protection: true
