@@ -83,8 +83,15 @@ class MainStore {
           this.setIsAuthRequired(true);
         }
 
-        return response.json().then((data) => {
-          throw new Error(data.message || `HTTP error! status: ${response.status}`);
+        return response.text().then((text) => {
+          let errorMsg = `HTTP error! status: ${response.status}`;
+          try {
+            const data = JSON.parse(text);
+            if (data?.message) errorMsg = data.message;
+          } catch {
+            // Text is not JSON
+          }
+          throw new Error(errorMsg);
         });
       })
       .then((data) => {
