@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { ItemRepository } from '@/server/repositories/items';
 import { TagRepository } from '@/server/repositories/tags';
 import { errorResponse, getAuthenticatedUserId, successResponse } from '@/server/auth';
-import * as cheerio from 'cheerio';
+import * as htmlparser2 from 'htmlparser2';
 import { parse } from 'csv-parse/sync';
 import { scrapeUrlMetadata } from '@/server/scraper';
 import { logger } from '@/lib/logger';
@@ -250,25 +250,49 @@ export async function POST(req: NextRequest) {
       }
 
       if (extractedBookmarks.length === 0) {
-        const $ = cheerio.load(content);
-        const links = $('a').toArray();
+        let currentLinkHref = '';
+        let currentLinkText = '';
+        let currentLinkTags: string[] = [];
 
-        for (const link of links) {
-          const $el = $(link);
-          const url = $el.attr('href');
-          if (!url || !url.startsWith('http')) continue;
+        const parser = new htmlparser2.Parser(
+          {
+            onopentag(name, attribs) {
+              if (name.toLowerCase() === 'a') {
+                const href = attribs.href || '';
+                if (href.startsWith('http')) {
+                  currentLinkHref = href;
+                  currentLinkText = '';
+                  const tagsAttr = attribs.tags || attribs.TAGS || '';
+                  currentLinkTags = tagsAttr
+                    ? tagsAttr.split(',').map((t) => t.trim()).filter(Boolean)
+                    : [];
+                }
+              }
+            },
+            ontext(text) {
+              if (currentLinkHref) {
+                currentLinkText += text;
+              }
+            },
+            onclosetag(name) {
+              if (name.toLowerCase() === 'a' && currentLinkHref) {
+                extractedBookmarks.push({
+                  url: currentLinkHref,
+                  title: (currentLinkText || currentLinkHref).trim(),
+                  tags: currentLinkTags,
+                  folders: [],
+                });
+                currentLinkHref = '';
+                currentLinkText = '';
+                currentLinkTags = [];
+              }
+            },
+          },
+          { decodeEntities: true }
+        );
 
-          const title = ($el.text() || url).trim();
-          const tagsAttr = $el.attr('tags') || $el.attr('TAGS') || '';
-          const tags = tagsAttr ? tagsAttr.split(',').map((t) => t.trim()).filter(Boolean) : [];
-
-          extractedBookmarks.push({
-            url,
-            title,
-            tags,
-            folders: [],
-          });
-        }
+        parser.write(content);
+        parser.end();
       }
 
       const defaultTagId = await TagRepository.createTag(`Імпорт з ${importSourceName}`, '', 0, userId);

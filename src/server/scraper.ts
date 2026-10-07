@@ -1,4 +1,4 @@
-import * as cheerio from 'cheerio';
+import * as htmlparser2 from 'htmlparser2';
 
 const MAX_HTML_BYTES = 3 * 1024 * 1024; // 3 MB cap on scraped page bodies
 const MAX_REDIRECTS = 5;
@@ -199,6 +199,104 @@ function scrapeGitHubMetadata(parsedUrl: URL, targetUrl: string) {
   return null;
 }
 
+interface ParsedHtmlMetadata {
+  title: string;
+  description: string;
+  image: string;
+  favicons: Array<{ rel: string; href: string; sizes?: string }>;
+}
+
+export function parseHtmlMetadata(html: string, baseUrl: string): ParsedHtmlMetadata {
+  let docTitle = '';
+  let inTitle = false;
+  let h1Title = '';
+  let inH1 = false;
+  const metas: Record<string, string> = {};
+  const favicons: Array<{ rel: string; href: string; sizes?: string }> = [];
+  let firstArticleImg = '';
+  let firstAnyImg = '';
+  let inArticleOrMain = false;
+
+  const parser = new htmlparser2.Parser(
+    {
+      onopentag(name, attribs) {
+        const tag = name.toLowerCase();
+        if (tag === 'title') {
+          inTitle = true;
+        } else if (tag === 'h1' && !h1Title) {
+          inH1 = true;
+        } else if (tag === 'article' || tag === 'main') {
+          inArticleOrMain = true;
+        } else if (tag === 'meta') {
+          const key = (attribs.property || attribs.name || attribs.itemprop || '').toLowerCase().trim();
+          const content = attribs.content;
+          if (key && content && !metas[key]) {
+            metas[key] = content;
+          }
+        } else if (tag === 'link') {
+          const rel = (attribs.rel || '').toLowerCase().trim();
+          const href = attribs.href;
+          if (href && (rel.includes('icon') || rel.includes('apple-touch-icon'))) {
+            favicons.push({ rel, href, sizes: attribs.sizes });
+          }
+        } else if (tag === 'img' && attribs.src) {
+          const src = attribs.src;
+          const isInvalid = src.startsWith('data:') || src.includes('spacer') || src.includes('pixel');
+          if (!isInvalid) {
+            if (inArticleOrMain && !firstArticleImg) {
+              firstArticleImg = src;
+            } else if (!firstAnyImg) {
+              firstAnyImg = src;
+            }
+          }
+        }
+      },
+      ontext(text) {
+        if (inTitle) docTitle += text;
+        if (inH1) h1Title += text;
+      },
+      onclosetag(name) {
+        const tag = name.toLowerCase();
+        if (tag === 'title') inTitle = false;
+        if (tag === 'h1') inH1 = false;
+        if (tag === 'article' || tag === 'main') inArticleOrMain = false;
+      },
+    },
+    { decodeEntities: true }
+  );
+
+  parser.write(html);
+  parser.end();
+
+  const title = (
+    metas['og:title'] ||
+    metas['twitter:title'] ||
+    metas['name'] ||
+    docTitle ||
+    h1Title
+  ).trim();
+
+  const description = (
+    metas['og:description'] ||
+    metas['description'] ||
+    metas['twitter:description'] ||
+    metas['description'] ||
+    ''
+  ).trim();
+
+  let image = metas['og:image'] || metas['twitter:image'] || metas['image'] || '';
+  if (!image) {
+    image = firstArticleImg || firstAnyImg || '';
+  }
+
+  return {
+    title,
+    description,
+    image,
+    favicons,
+  };
+}
+
 // Telegram Channel / Post handler
 async function scrapeTelegramMetadata(parsedUrl: URL, targetUrl: string) {
   const host = parsedUrl.hostname.toLowerCase();
@@ -218,16 +316,12 @@ async function scrapeTelegramMetadata(parsedUrl: URL, targetUrl: string) {
 
     if (res.ok) {
       const html = await readBodyWithCap(res);
-      const $ = cheerio.load(html);
-
-      const ogTitle = $('meta[property="og:title"]').attr('content');
-      const ogDesc = $('meta[property="og:description"]').attr('content');
-      const ogImage = $('meta[property="og:image"]').attr('content');
+      const parsed = parseHtmlMetadata(html, targetUrl);
 
       return {
-        title: ogTitle || `Telegram: @${path}`,
-        description: ogDesc || `Telegram channel or message @${path}`,
-        image: ogImage || '',
+        title: parsed.title || `Telegram: @${path}`,
+        description: parsed.description || `Telegram channel or message @${path}`,
+        image: parsed.image || '',
         url: targetUrl,
       };
     }
@@ -238,27 +332,30 @@ async function scrapeTelegramMetadata(parsedUrl: URL, targetUrl: string) {
 }
 
 // Fallback high quality favicon fetcher
-export function getHighResFavicon($: cheerio.CheerioAPI, baseUrl: string): string {
-  const appleTouchIcons = $('link[rel="apple-touch-icon"], link[rel="apple-touch-icon-precomposed"]').toArray();
-  for (const icon of appleTouchIcons) {
-    const href = $(icon).attr('href');
-    if (href) return resolveUrl(href, baseUrl);
+export function getHighResFavicon(
+  favicons: Array<{ rel: string; href: string; sizes?: string }>,
+  baseUrl: string
+): string {
+  const appleTouchIcon = favicons.find(
+    (f) => f.rel === 'apple-touch-icon' || f.rel === 'apple-touch-icon-precomposed'
+  );
+  if (appleTouchIcon?.href) {
+    return resolveUrl(appleTouchIcon.href, baseUrl);
   }
 
-  const iconsWithSizes = $('link[rel="icon"][sizes], link[rel="shortcut icon"][sizes]').toArray();
-  if (iconsWithSizes.length > 0) {
-    iconsWithSizes.sort((a, b) => {
-      const sizeA = parseInt($(a).attr('sizes') || '0', 10);
-      const sizeB = parseInt($(b).attr('sizes') || '0', 10);
+  const sizedIcons = favicons.filter((f) => f.sizes);
+  if (sizedIcons.length > 0) {
+    sizedIcons.sort((a, b) => {
+      const sizeA = parseInt(a.sizes || '0', 10);
+      const sizeB = parseInt(b.sizes || '0', 10);
       return sizeB - sizeA;
     });
-    const bestIconHref = $(iconsWithSizes[0]).attr('href');
-    if (bestIconHref) return resolveUrl(bestIconHref, baseUrl);
+    return resolveUrl(sizedIcons[0].href, baseUrl);
   }
 
-  const standardIcon = $('link[rel="icon"], link[rel="shortcut icon"]').attr('href');
-  if (standardIcon) {
-    return resolveUrl(standardIcon, baseUrl);
+  const standardIcon = favicons.find((f) => f.rel.includes('icon'));
+  if (standardIcon?.href) {
+    return resolveUrl(standardIcon.href, baseUrl);
   }
 
   try {
@@ -295,25 +392,11 @@ export async function scrapeUrlMetadata(targetUrl: string) {
   }
 
   const html = await readBodyWithCap(response);
-  const $ = cheerio.load(html);
+  const metadata = parseHtmlMetadata(html, targetUrl);
 
-  const ogTitle = $('meta[property="og:title"]').attr('content');
-  const twitterTitle = $('meta[name="twitter:title"]').attr('content');
-  const schemaTitle = $('meta[itemprop="name"]').attr('content');
-  const docTitle = $('title').first().text();
-  const h1Title = $('h1').first().text();
-  const title = (ogTitle || twitterTitle || schemaTitle || docTitle || h1Title || parsed.hostname).trim();
-
-  const ogDesc = $('meta[property="og:description"]').attr('content');
-  const metaDesc = $('meta[name="description"]').attr('content');
-  const twitterDesc = $('meta[name="twitter:description"]').attr('content');
-  const schemaDesc = $('meta[itemprop="description"]').attr('content');
-  const description = (ogDesc || metaDesc || twitterDesc || schemaDesc || '').trim();
-
-  const ogImage = $('meta[property="og:image"]').attr('content');
-  const twitterImage = $('meta[name="twitter:image"]').attr('content');
-  const schemaImage = $('meta[itemprop="image"]').attr('content');
-  let image = ogImage || twitterImage || schemaImage || '';
+  const title = (metadata.title || parsed.hostname).trim();
+  const description = metadata.description.trim();
+  let image = metadata.image;
 
   if (!image) {
     const ghMeta = scrapeGitHubMetadata(parsed, targetUrl);
@@ -322,17 +405,10 @@ export async function scrapeUrlMetadata(targetUrl: string) {
     }
   }
 
-  if (!image) {
-    const firstImg = $('article img[src], main img[src], img[src]').first().attr('src');
-    if (firstImg && !firstImg.startsWith('data:') && !firstImg.includes('spacer') && !firstImg.includes('pixel')) {
-      image = firstImg;
-    }
-  }
-
   if (image) {
     image = resolveUrl(image, targetUrl);
   } else {
-    image = getHighResFavicon($, targetUrl);
+    image = getHighResFavicon(metadata.favicons, targetUrl);
   }
 
   return {
