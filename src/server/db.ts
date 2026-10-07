@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3';
+import type DatabaseType from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 import { logger } from '@/lib/logger';
@@ -148,13 +148,15 @@ const MIGRATIONS = [
 ];
 
 export class LocalD1Database implements D1Database {
-  private sqlite: Database.Database;
+  private sqlite: DatabaseType.Database;
 
   constructor(dbPath: string) {
     const dir = path.dirname(dbPath);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const Database = require('better-sqlite3');
     this.sqlite = new Database(dbPath);
     this.sqlite.pragma('journal_mode = WAL');
     this.sqlite.pragma('foreign_keys = ON');
@@ -203,7 +205,7 @@ export class LocalD1Database implements D1Database {
 class LocalD1PreparedStatement implements D1PreparedStatement {
   private values: any[] = [];
 
-  constructor(private db: Database.Database, private sql: string) {}
+  constructor(private db: DatabaseType.Database, private sql: string) {}
 
   bind(...values: any[]): D1PreparedStatement {
     const clone = new LocalD1PreparedStatement(this.db, this.sql);

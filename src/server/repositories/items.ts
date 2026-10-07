@@ -1,7 +1,6 @@
 import { getD1Database, checkDatabaseExists } from '../db';
 import { ItemRow, safeDecodeURI, safeEncodeURI } from './types';
 import { TagRepository } from './tags';
-import { scrapeUrlMetadata } from '../scraper';
 
 export class ItemRepository {
   static async getItems(userId: number): Promise<ItemRow[]> {
@@ -213,6 +212,7 @@ export class ItemRepository {
    */
   static async refetchItemsMetadata(ids: number[], userId: number): Promise<boolean> {
     if (ids.length === 0) return false;
+    const { scrapeUrlMetadata } = await import('../scraper');
     const db = getD1Database();
     const placeholders = ids.map(() => '?').join(',');
     const itemsRes = await db
