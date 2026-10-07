@@ -4,49 +4,59 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { handleBookmarkDragStart } from '@/lib/dragDrop';
 
-export const TableLayout = ({ table, rows }: { table: any; rows: any[] }) => {
+interface TableRowItemProps {
+  row: any;
+  table?: any;
+}
+
+const TableRowItem = React.memo(({ row, table }: TableRowItemProps) => {
+  return (
+    <TableRow
+      data-state={row.getIsSelected() && 'selected'}
+      draggable={true}
+      onDragStart={(e) => handleBookmarkDragStart(e, row.original, table)}
+      className="onhover-container cursor-grab active:cursor-grabbing hover:bg-accent/40 transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_50px]"
+    >
+      {row.getVisibleCells().map((cell: any) => {
+        const isPinned = cell.column.columnDef.meta?.isPinned ?? false;
+        return (
+          <TableCell
+            key={cell.id}
+            className={cn(
+              'text-left align-middle break-normal whitespace-normal',
+              cell.column.columnDef.meta?.class || '',
+              isPinned && 'sticky right-0 z-10 bg-transparent'
+            )}
+          >
+            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+          </TableCell>
+        );
+      })}
+    </TableRow>
+  );
+});
+TableRowItem.displayName = 'TableRowItem';
+
+export const TableLayout = React.memo(({ table, rows }: { table: any; rows: any[] }) => {
   return (
     <Table className="w-full">
       <TableHeader>
-        {table.getHeaderGroups().map((headerGroup) => (
+        {table.getHeaderGroups().map((headerGroup: any) => (
           <TableRow key={headerGroup.id}>
-            {headerGroup.headers.map((header) => {
-              return (
-                <TableHead key={header.id} className={header.column.columnDef.meta?.class || ''}>
-                  {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                </TableHead>
-              );
-            })}
+            {headerGroup.headers.map((header: any) => (
+              <TableHead key={header.id} className={header.column.columnDef.meta?.class || ''}>
+                {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+              </TableHead>
+            ))}
           </TableRow>
         ))}
       </TableHeader>
       <TableBody>
         {rows.map((row) => (
-          <TableRow
-            key={row.id}
-            data-state={row.getIsSelected() && 'selected'}
-            draggable={true}
-            onDragStart={(e) => handleBookmarkDragStart(e, row.original, table)}
-            className="onhover-container cursor-grab active:cursor-grabbing hover:bg-accent/40 transition-colors"
-          >
-            {row.getVisibleCells().map((cell) => {
-              const isPinned = cell.column.columnDef.meta?.isPinned ?? false;
-              return (
-                <TableCell
-                  key={cell.id}
-                  className={cn(
-                    'text-left align-middle break-normal whitespace-normal',
-                    cell.column.columnDef.meta?.class || '',
-                    isPinned && 'sticky right-0 z-10 bg-transparent'
-                  )}
-                >
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </TableCell>
-              );
-            })}
-          </TableRow>
+          <TableRowItem key={row.original?.id ?? row.id} row={row} table={table} />
         ))}
       </TableBody>
     </Table>
   );
-};
+});
+TableLayout.displayName = 'TableLayout';

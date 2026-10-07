@@ -12,7 +12,7 @@ import { EllipsisVertical, Maximize, Share2 } from 'lucide-react';
 import { DeleteDialog } from '../Controls/DeleteDialog';
 import { toast } from 'sonner';
 
-export const ItemsActions = ({ row }) => {
+export const ItemsActions = React.memo(({ row }: { row: any }) => {
   const itemID = row.original.id;
   const store = mainStore;
   const handleEdit = () => {
@@ -92,5 +92,6 @@ export const ItemsActions = ({ row }) => {
       </DropdownMenu>
     </div>
   );
-};
+});
+ItemsActions.displayName = 'ItemsActions';
 

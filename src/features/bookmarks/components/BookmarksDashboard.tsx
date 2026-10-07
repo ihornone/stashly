@@ -430,11 +430,18 @@ const Table: React.FC = observer(() => {
     saveLayoutColumnVisibilityPreference(layout, newVisibility);
   };
 
-  const layouts: Record<LayoutType, React.ReactNode> = {
-    list: <ListLayout rows={currentRows} table={table} />,
-    cards: <CardsLayout rows={currentRows} table={table} />,
-    table: <TableLayout table={table} rows={currentRows} />,
-  };
+  const activeLayoutNode = React.useMemo(() => {
+    switch (layout) {
+      case 'list':
+        return <ListLayout rows={currentRows} table={table} />;
+      case 'cards':
+        return <CardsLayout rows={currentRows} table={table} />;
+      case 'table':
+        return <TableLayout table={table} rows={currentRows} />;
+      default:
+        return <CardsLayout rows={currentRows} table={table} />;
+    }
+  }, [layout, currentRows, table]);
 
   // Global keyboard shortcuts for desktop / PWA
   useEffect(() => {
@@ -524,7 +531,7 @@ const Table: React.FC = observer(() => {
         {currentRows.length > 0 ? (
           <div className={`flex min-h-full flex-col justify-between gap-4 p-3 sm:p-4 pb-18 sm:pb-4 item-list--${layout}`}>
             <div>
-              {layouts[layout]}
+              {activeLayoutNode}
             </div>
             <Pagination table={table} />
           </div>

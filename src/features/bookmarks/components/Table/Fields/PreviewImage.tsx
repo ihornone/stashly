@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { Spinner } from '@/components/ui/spinner';
 import { ItemType } from '@/lib/types';
 
-export const PreviewImage = ({
+export const PreviewImage = React.memo(({
   imageUrl,
   item,
   className,
@@ -27,12 +27,10 @@ export const PreviewImage = ({
     } catch {
       return '';
     }
-  }, [item, imageUrl]);
+  }, [item?.url, imageUrl]);
 
   const faviconUrl = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=128` : '';
-
   const activeImageUrl = useFaviconFallback && faviconUrl ? faviconUrl : imageUrl;
-
   const imageLocalURL = activeImageUrl;
 
   useEffect(() => {
@@ -83,6 +81,8 @@ export const PreviewImage = ({
             )}
             src={imageLocalURL}
             title={imageUrl}
+            loading="lazy"
+            decoding="async"
             onLoad={() => {
               setIsLoaded(true);
             }}
@@ -109,9 +109,12 @@ export const PreviewImage = ({
             src={imageLocalURL}
             title={activeImageUrl}
             alt={'Preview of image: ' + activeImageUrl}
+            loading="lazy"
+            decoding="async"
           />
         </DialogContent>
       </Dialog>
     </div>
   );
-};
+});
+PreviewImage.displayName = 'PreviewImage';
